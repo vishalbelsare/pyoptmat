@@ -154,3 +154,105 @@ class PolynomialScaling(TemperatureParameter):
   @property
   def shape(self):
     return self.coefs[0].shape
+
+class Inter1dScaling(TemperatureParameter):
+  """
+    Mimics np.piecewise linear function
+
+  """
+
+  def __init__(self, x_new, x, y, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.x_new = x_new
+    self.x = x
+    self.y = y
+  
+  def sel(self, name, ind):
+    return torch.gather(name, 1, ind)
+    
+  def value(self, T):
+    eps = torch.finfo(self.y.dtype).eps
+    v = {}
+    y_new = torch.zeros(self.x_new.size())
+    ind = y_new.long()  
+    
+    torch.searchsorted(self.x.contiguous(),
+            self.x_new.contiguous(), out=ind)    
+    
+    ind -= 1
+    
+    ind = torch.clamp(ind, 0, self.x.shape[1] - 1 - 1)
+    
+    v['slopes'] = (
+       (self.y[:, 1:]-self.y[:, :-1])
+       /
+       (eps + (self.x[:, 1:]-self.x[:, :-1]))
+      )
+ 
+    return self.sel(self.y, ind) + self.sel(v['slopes'], ind)*(self.x_new - self.sel(self.x, ind))  
+
+  @property
+  def shape(self):
+    return self.x_new.shape
+  
+  
+  
+class ProposedChabocheJumpWidthScaling(TemperatureParameter):
+
+  def __init__(self, b, X, g, k, tau, eps_dot, gamma_dot, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.b = b
+    self.X = X
+    self.g = g
+    self.k = k
+    self.tau = tau
+    self.eps_dot = eps_dot
+    self.gamma_dot = gamma_dot
+
+
+  def value(self, T):
+    """
+      Actual temperature-dependent value
+
+      Args:
+        T:      current temperatures
+    """
+    L_b = self.X*self.b*(1-self.k*T[...,None]/(self.tau*self.b**3)*torch.log(self.eps_dot/self.gamma_dot))/self.g
+
+    return L_b
+    
+  @property
+  def shape(self):
+    return (self.X.shape)
+
+class ProposedChabocheScaling(TemperatureParameter):
+
+  def __init__(self, mu, b, X, g, k, tau, eps_dot, gamma_dot, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.mu = mu
+    self.b = b
+    self.X = X
+    self.g = g
+    self.k = k
+    self.tau = tau
+    self.eps_dot = eps_dot
+    self.gamma_dot = gamma_dot
+
+    
+    self.L_b = ProposedChabocheJumpWidthScaling(self.b, self.X, 
+            self.g, self.k, self.tau, self.eps_dot, self.gamma_dot)
+
+  def value(self, T):
+    """
+      Actual temperature-dependent value
+
+      Args:
+        T:      current temperatures
+    """    
+    L_b = self.L_b(T)
+    C = self.mu(T)[...,None]*self.b/L_b
+    return C
+    
+  @property
+  def shape(self):
+    return (self.X.shape)  
