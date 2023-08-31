@@ -119,7 +119,7 @@ def load_results(xdata, device=torch.device("cpu")):
         [control_map[t] for t in xdata["control"].values], device=device
     )
 
-    data = torch.empty((4,) + time.shape, device=device)
+    data = torch.empty((3,) + time.shape, device=device)
 
     data[0] = time
     data[1] = temp
@@ -307,7 +307,7 @@ def make_tension_tests(rates, temperatures, elimits, nsteps):
                                     :code:`(times, strains, temperatures, cycles)`
     """
     nbatch = temperatures.shape[0]
-    times = torch.zeros(nsteps, nbatch)
+    times = torch.zeros(nsteps, nbatch, device=rates.device)
     strains = torch.zeros_like(times)
     temps = torch.zeros_like(strains)
 

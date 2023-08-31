@@ -10,5 +10,6 @@ xarray[io]
 xarray
 click==8.0.4
 black==22.1.0
-nose
-pylint==2.12.2
+nose2
+pylint==2.15.5
+functorch

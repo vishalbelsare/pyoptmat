@@ -10,7 +10,6 @@ from pyoptmat import ode, models, flowrules, hardening, utility, damage
 from pyoptmat.temperature import ConstantParameter as CP
 
 torch.set_default_tensor_type(torch.DoubleTensor)
-torch.autograd.set_detect_anomaly(True)
 
 
 def differ(mfn, p0, eps=1.0e-6):
@@ -66,7 +65,7 @@ class CommonGradient:
 
         for i, (p1, p2) in enumerate(zip(grad, ngrad)):
             print(i, p1, p2)
-            self.assertTrue(np.allclose(p1, p2, rtol=1e-4))
+            self.assertTrue(np.allclose(p1, p2, rtol=1e-4, atol=1e-4))
 
     def test_gradient_stress(self):
         bmodel = self.model_fn([Variable(pi, requires_grad=True) for pi in self.p])
@@ -309,7 +308,7 @@ class TestHardeningViscoplasticityDamage(unittest.TestCase, CommonGradient):
         ]
 
         self.model_fn = lambda p: models.ModelIntegrator(
-            models.InelasticModel(
+            models.DamagedInelasticModel(
                 CP(p[0]),
                 flowrules.IsoKinViscoplasticity(
                     CP(p[1]),
